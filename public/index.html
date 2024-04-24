@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance</title>
+</head>
+<body>
+    Select a Date: <input id="dateInput" type='date' name="date">
+    <button style="margin-left: 25px;" onclick="handleSearch()">Search</button>
+    <button style="margin-left: 10rem;" onclick="handleReport()">Fetch Attendance Report</button>
+    <div id="output"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        async function handleSearch() {
+            const date = document.getElementById('dateInput').value;
+            if (!date) {
+                alert('Please select a date.');
+                return;
+            }
+            try {
+                const response = await axios.post('/attendance/check', { date });
+                const data = response.data;
+                if (data.marked) {
+                    let html = `<p>Attendance for ${date} is already marked.</p><ul>`;
+                    data.attendance.forEach(att => {
+                        html += `<li>${att.studentName} (${att.status})</li>`;
+                    });
+                    html += '</ul>';
+                    document.getElementById('output').innerHTML = html;
+                } else {
+                    let formHtml = `<form onsubmit="markAttendance(event, '${date}')"><h3>Mark Attendance for ${date}</h3>`;
+                    data.students.forEach(student => {
+                        formHtml += `<label><input type="checkbox" name="student" value="${student.id}"> ${student.name}</label><br>`;
+                    });
+                    formHtml += '<button type="submit">Submit Attendance</button></form>';
+                    document.getElementById('output').innerHTML = formHtml;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function markAttendance(event, date) {
+            event.preventDefault();
+            const checkboxes = document.querySelectorAll('input[name="student"]:checked');
+            const studentIds = Array.from(checkboxes).map(cb => cb.value);
+
+            try {
+                await axios.post('/attendance/mark', { date, studentIds });
+                alert('Attendance marked successfully!');
+                handleSearch(); // Refresh to show updated attendance
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function handleReport() {
+            try {
+                const response = await axios.get('/attendance/report');
+                const data = response.data;
+                let reportHtml = '<h3>Attendance Report:</h3><ul>';
+                data.forEach(item => {
+                    reportHtml += `<li>${item.date}: ${item.studentName} (${item.status})</li>`;
+                });
+                reportHtml += '</ul>';
+                document.getElementById('output').innerHTML = reportHtml;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
